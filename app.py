@@ -11,7 +11,12 @@ from linebot.v3.messaging import (
     ApiClient,
     MessagingApi,
     ReplyMessageRequest,
-    TextMessage, StickerMessage, ImageMessage, VideoMessage, LocationMessage
+    TextMessage,
+    TemplateMessage, ConfirmTemplate, MessageAction,
+    CarouselTemplate,
+    CarouselColumn,
+    URIAction,
+    PostbackAction
 )
 
 app = Flask(__name__)
@@ -38,14 +43,6 @@ def callback():
 
     return 'OK'
 
-import google.generativeai as genai
-
-genai.configure(api_key=userdata.get('GOOGLE_API_KEY'))
-model = genai.GenerativeModel("gemini-2.0-flash")
-def ask_gemini(question):
-  response = model.generate_content(question)
-  return response.text
-
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
@@ -53,37 +50,47 @@ def handle_message(event):
         line_bot_api = MessagingApi(api_client)
 
         action = event.message.text
-        if action == 'sticker':
-          #回覆貼圖
-          reply = StickerMessage(
-            package_id='446',
-            sticker_id='1989'
-          )
-        elif action == 'image':
-          #回覆圖片
-          reply = ImageMessage(
-            original_content_url='https://m.gxgif.com/pic/kb/20235141008.jpg',
-            preview_image_url='https://m.gxgif.com/pic/kb/20235141008.jpg'
-          )
-        elif action == 'video':
-          #回覆影片
-          reply = VideoMessage(
-            original_content_url='https://youtu.be/U9Z9X_YXaNY?si=VRH1K7FAuK9vNa3r',
-            preview_image_url='https://images.chinatimes.com/newsphoto/2014-10-10/1024/20141010001764.jpg'
-          )
-        elif action == 'location':
-          #回覆位置
-          reply = LocationMessage(
-            title="台北101",
-            address="110台北市信義區信義路五段7號",
-            latitude=2.17403,
-            longitude=41.40338
-          )
-        else:
-          response = ask_gemini(action)
-          reply = TextMessage(text=response)
+        if action == 'confirm':
+            reply = TemplateMessage(
+                alt_text='confirm template',
+                template = ConfirmTemplate(
+                    text='Are you sure?',
+                    actions=[
+                        MessageAction(label='Yes',text='Yes'),
+                        MessageAction(label='No',text='No')
+                    ]
+                )
+            )
+        elif action == 'carousel':
+            carousei_template = CarouselTemplate(
+                columns=[
+                    CarouselColumn(
+                        thumbnail_image_url='https://www.printwand.com/blog/media/2012/01/ultimate-guide-to-your-product-launch.jpg',
+                        title='商品 A',
+                        text='這是商品 A 的描述，價格 $100。',
+                        actions=[
+                            URIAction(label='查看詳情', uri='https://www.printwand.com/blog/the-ultimate-guide-to-your-new-product-launch'),
+                        ]
+                    ),
+                    CarouselColumn(
+                        thumbnail_image_url='https://i0.wp.com/www.gktoday.in/wp-content/uploads/2016/04/Product-in-Marketing.png?ssl=1',
+                        title='商品 B',
+                        text='這是商品 B 的描述，價格 $200。',
+                        actions=[
+                            URIAction(label='查看詳情', uri='http://gktoday.in/product-in-marketing-meaning-and-types/'),
+                        ]
+                    )
 
-        line_bot_api.reply_message(
+                ]
+            )
+            reply = TemplateMessage(
+                alt_text='this is a carousel template',
+                template=carousei_template
+            )
+        else:
+            reply = TextMessage(text='Please type"confirm"')
+
+        line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
                 messages=[reply]
