@@ -1,3 +1,6 @@
 line-bot-sdk
-flask
+
+Flask==2.2.2  # 你可以嘗試這個版本，或者其他 2.x.x 的穩定版本
+Werkzeug==2.3.7 # 這個版本與 Flask 2.2.x 兼容性較好
+
 google-generativeai
