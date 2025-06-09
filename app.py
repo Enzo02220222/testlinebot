@@ -21,8 +21,8 @@ from linebot.v3.messaging import (
 
 app = Flask(__name__)
 
-configuration = Configuration(access_token=userdata.get('LINE_CHANNEL_ACCESS_TOKEN'))
-handler = WebhookHandler(userdata.get('LINE_CHANNEL_SECRET'))
+configuration = Configuration(access_token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN'))
+handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
 
 
 @app.route("/callback", methods=['POST'])
