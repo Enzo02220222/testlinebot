@@ -8,6 +8,7 @@ Original file is located at
 """
 
 import os
+
 from flask import Flask, request, abort
 
 from linebot.v3 import WebhookHandler
@@ -18,13 +19,13 @@ from linebot.v3.messaging import (
     ApiClient,
     MessagingApi,
     ReplyMessageRequest,
-    TextMessage
+    TextMessage, StickerMessage, ImageMessage, VideoMessage, LocationMessage
 )
 
 app = Flask(__name__)
 
-configuration = Configuration(access_token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN'))
-line_handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
+configuration = Configuration(access_token=userdata.get('LINE_CHANNEL_ACCESS_TOKEN'))
+handler = WebhookHandler(userdata.get('LINE_CHANNEL_SECRET'))
 
 
 @app.route("/callback", methods=['POST'])
@@ -38,24 +39,66 @@ def callback():
 
     # handle webhook body
     try:
-        line_handler.handle(body, signature)
+        handler.handle(body, signature)
     except InvalidSignatureError:
         app.logger.info("Invalid signature. Please check your channel access token/channel secret.")
         abort(400)
 
     return 'OK'
 
+import google.generativeai as genai
 
-@line_handler.add(MessageEvent, message=TextMessageContent)
+genai.configure(api_key=userdata.get('GOOGLE_API_KEY'))
+model = genai.GenerativeModel("gemini-2.0-flash")
+def ask_gemini(question):
+  response = model.generate_content(question)
+  return response.text
+
+
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
-        line_bot_api.reply_message_with_http_info(
+
+        action = event.message.text
+        if action == 'sticker':
+          #回覆貼圖
+          reply = StickerMessage(
+            package_id='446',
+            sticker_id='1989'
+          )
+        elif action == 'image':
+          #回覆圖片
+          reply = ImageMessage(
+            original_content_url='https://m.gxgif.com/pic/kb/20235141008.jpg',
+            preview_image_url='https://m.gxgif.com/pic/kb/20235141008.jpg'
+          )
+        elif action == 'video':
+          #回覆影片
+          reply = VideoMessage(
+            original_content_url='https://youtu.be/U9Z9X_YXaNY?si=VRH1K7FAuK9vNa3r',
+            preview_image_url='https://images.chinatimes.com/newsphoto/2014-10-10/1024/20141010001764.jpg'
+          )
+        elif action == 'location':
+          #回覆位置
+          reply = LocationMessage(
+            title="台北101",
+            address="110台北市信義區信義路五段7號",
+            latitude=2.17403,
+            longitude=41.40338
+          )
+        else:
+          response = ask_gemini(action)
+          reply = TextMessage(text=response)
+
+        line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=event.message.text)]
+                messages=[reply]
             )
         )
 
+# for colab
+ngrok_start()
 if __name__ == "__main__":
     app.run()
